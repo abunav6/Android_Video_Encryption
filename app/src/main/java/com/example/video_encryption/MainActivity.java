@@ -192,8 +192,8 @@ public class MainActivity extends AppCompatActivity {
                                                 @Override
                                                 public void onClick(DialogInterface dialogInterface, int i) {
                                                     Intent share = new Intent();
+                                                    share.setType("*/*");
                                                     share.setAction(Intent.ACTION_SEND);
-                                                    share.setType("application/pdf");
                                                     share.putExtra(Intent.EXTRA_STREAM, uri);
                                                     share.setPackage("com.whatsapp");
                                                     share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -324,20 +324,48 @@ public class MainActivity extends AppCompatActivity {
 
                                     try {
                                         final VideoView videoView = findViewById(R.id.videoView);
-                                        Uri u = Uri.parse(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_decrypted.mp4", file_name));
+                                        final Uri u = Uri.parse(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_decrypted.mp4", file_name));
                                         videoView.setVideoURI(u);
                                         videoView.setVisibility(View.VISIBLE);
                                         Toast.makeText(getApplicationContext(), "Playing Output Video", Toast.LENGTH_SHORT).show();
                                         (findViewById(R.id.encrypt)).setVisibility(View.INVISIBLE);
                                         (findViewById(R.id.decrypt)).setVisibility(View.INVISIBLE);
                                         videoView.start();
-                                        videoView.setOnTouchListener(new View.OnTouchListener() {
+                                        /*videoView.setOnTouchListener(new View.OnTouchListener() {
                                             @Override
                                             public boolean onTouch(View view, MotionEvent motionEvent) {
                                                 videoView.stopPlayback();
                                                 videoView.setVisibility(View.INVISIBLE);
                                                 (findViewById(R.id.encrypt)).setVisibility(View.VISIBLE);
                                                 (findViewById(R.id.decrypt)).setVisibility(View.VISIBLE);
+                                                return true;
+                                            }
+                                        });*/
+
+                                        videoView.setOnLongClickListener(new View.OnLongClickListener() {
+                                            @Override
+                                            public boolean onLongClick(View view) {
+                                                new AlertDialog.Builder(MainActivity.this)
+                                                        .setTitle("Send on Whatsapp")
+                                                        .setMessage("Do you want to sent the generated Video on Whatsapp?")
+                                                        .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                                                            @Override
+                                                            public void onClick(DialogInterface dialogInterface, int i) {
+                                                                Intent share = new Intent();
+                                                                share.setAction(Intent.ACTION_SEND);
+                                                                share.setType("*/*");
+                                                                share.putExtra(Intent.EXTRA_STREAM, u);
+                                                                share.setPackage("com.whatsapp");
+                                                                share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                                                startActivity(share);
+                                                            }
+                                                        }).setNegativeButton("No", new DialogInterface.OnClickListener() {
+                                                    @Override
+                                                    public void onClick(DialogInterface dialogInterface, int i) {
+                                                        //
+                                                    }
+                                                }).setIcon(android.R.drawable.ic_dialog_alert)
+                                                        .show();
                                                 return true;
                                             }
                                         });
