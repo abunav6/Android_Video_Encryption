@@ -20,7 +20,7 @@ public class AES {
 
     public static void setKey(String myKey)
     {
-        MessageDigest sha = null;
+        MessageDigest sha;
         try {
             key = myKey.getBytes("UTF-8");
             sha = MessageDigest.getInstance("SHA-1");
@@ -43,7 +43,7 @@ public class AES {
         try
         {
             setKey(secret);
-            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");             //change to ECB if CBC does not work
             cipher.init(Cipher.ENCRYPT_MODE, secretKey);
             return Base64.getEncoder().encodeToString(cipher.doFinal(strToEncrypt.getBytes("UTF-8")));
         }
@@ -60,7 +60,7 @@ public class AES {
         try
         {
             setKey(secret);
-            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5PADDING");
+            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5PADDING");             //change to ECB if CBC does not work
             cipher.init(Cipher.DECRYPT_MODE, secretKey);
             return new String(cipher.doFinal(Base64.getDecoder().decode(strToDecrypt)));
         }

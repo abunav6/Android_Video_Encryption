@@ -3,12 +3,15 @@ package com.example.video_encryption;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 
 
 import android.Manifest;
+import android.content.DialogInterface;
 import android.content.Intent;
 
 import android.content.pm.PackageManager;
@@ -65,10 +68,11 @@ public class MainActivity extends AppCompatActivity {
                 intent.setType("*/*");
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
 
-
-
                 if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(getParent(), new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+                }
+                if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
                 }
 
                 try {
@@ -92,7 +96,11 @@ public class MainActivity extends AppCompatActivity {
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
 
                 if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(getParent(), new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+                }
+
+                if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
                 }
 
                 try{
@@ -168,13 +176,36 @@ public class MainActivity extends AppCompatActivity {
                                     file_name = ((TextView)popupView.findViewById(R.id.file_name)).getText().toString();
                                     key = ((TextView)popupView.findViewById(R.id.key)).getText().toString();
                                     try {
-                                        FileOutputStream text_encoded = new FileOutputStream(new File(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_encoded.txt", file_name)));
+                                        File file = new File(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_encoded.txt", file_name));
+                                        final Uri uri = FileProvider.getUriForFile(MainActivity.this, MainActivity.this.getPackageName()+".provider", file);
+                                        FileOutputStream text_encoded = new FileOutputStream(file);
                                         AES aes = new AES();
                                         String encrypted = aes.encrypt(encoded, key);
 
                                         try{
                                             text_encoded.write(encrypted.getBytes(StandardCharsets.ISO_8859_1));
                                             Toast.makeText(getApplicationContext(), "Wrote Encoded Text to File!", Toast.LENGTH_SHORT).show();
+                                            new AlertDialog.Builder(MainActivity.this)
+                                                    .setTitle("Send on Whatsapp")
+                                                    .setMessage("Do you want to sent the generated Text file on Whatsapp?")
+                                                    .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                                                @Override
+                                                public void onClick(DialogInterface dialogInterface, int i) {
+                                                    Intent share = new Intent();
+                                                    share.setAction(Intent.ACTION_SEND);
+                                                    share.setType("application/pdf");
+                                                    share.putExtra(Intent.EXTRA_STREAM, uri);
+                                                    share.setPackage("com.whatsapp");
+                                                    share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                                    startActivity(share);
+                                                }
+                                            }).setNegativeButton("No", new DialogInterface.OnClickListener() {
+                                                @Override
+                                                public void onClick(DialogInterface dialogInterface, int i) {
+                                                    //
+                                                }
+                                            }).setIcon(android.R.drawable.ic_dialog_alert)
+                                            .show();
                                         }catch (Exception e){
                                             e.printStackTrace();
                                             Toast.makeText(getApplicationContext(), "Could not write Encoded Text to File!", Toast.LENGTH_SHORT).show();
@@ -247,8 +278,15 @@ public class MainActivity extends AppCompatActivity {
                             key = ((TextView) popupView.findViewById(R.id.key2)).getText().toString();
                             popupWindow.dismiss();
 
+
                             Uri uri = data.getData();
-                            String uri_path = uri.getPath().replace("external_files","storage/emulated/0");
+                            String uri_path;
+                            if(uri.getPath().contains("/storage/emulated/0")){
+                                uri_path = uri.getPath().split(":")[1];
+                            }
+                            else{
+                                uri_path = uri.getPath().replace("external_files", "storage/emulated/0");
+                            }
                             try {
                                 File file = new File(uri_path);
                                 FileInputStream fis = new FileInputStream(file);
