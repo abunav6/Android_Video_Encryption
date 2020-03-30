@@ -5,4 +5,9 @@
     <string name="enter_file_name">Enter File name</string>
     <string name="select_a_video">Select A Video</string>
     <string name="decrypt_text_file">Decrypt Text File</string>
+    <string name="encoded_wrote">Wrote Encoded Text To File</string>
+    <string name="view_file">View File</string>
+    <string name="close">Close</string>
+    <string name="send_on_whatsapp">Send on WhatsApp</string>
+    <string name="play_video">Play Video</string>
 </resources>

@@ -11,25 +11,32 @@ import androidx.core.content.FileProvider;
 
 
 import android.Manifest;
+import android.app.Activity;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 
+import android.os.Environment;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewGroupOverlay;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
@@ -65,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
 
 
                 Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                intent.setType("*/*");
+                intent.setType("video/mp4");
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
 
                 if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
@@ -92,7 +99,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
 
                 Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                intent.setType("*/*");
+                intent.setType("text/plain");
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
 
                 if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
@@ -124,11 +131,15 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         switch (requestCode) {
             case VIDEO_SELECT_CODE:
+
+
                 if (resultCode == RESULT_OK) {
                     Uri uri = data.getData();
                     try {
                         FileInputStream importdb = new FileInputStream(getContentResolver().openFileDescriptor(uri, "r").getFileDescriptor());
-                        Log.i("input", uri.getPath());
+
+                        File file = new File(uri.getPath());
+                        Log.i("input", file.getAbsolutePath());
                         try {
 
                             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -148,13 +159,13 @@ public class MainActivity extends AppCompatActivity {
                             dir.mkdir();
 
 
-                            LayoutInflater inflater = (LayoutInflater)
+                            final LayoutInflater inflater = (LayoutInflater)
                                     getSystemService(LAYOUT_INFLATER_SERVICE);
                             final View popupView = inflater.inflate(R.layout.popup, null);
 
-                            int width = LinearLayout.LayoutParams.WRAP_CONTENT;
-                            int height = LinearLayout.LayoutParams.WRAP_CONTENT;
-                            boolean focusable = true;
+                            final int width = LinearLayout.LayoutParams.WRAP_CONTENT;
+                            final int height = LinearLayout.LayoutParams.WRAP_CONTENT;
+                            final boolean focusable = true;
                             final PopupWindow popupWindow = new PopupWindow(popupView, width, height, focusable);
                             ((EditText)popupView.findViewById(R.id.file_name)).setHintTextColor(Color.LTGRAY);
                             ((EditText)popupView.findViewById(R.id.file_name)).setTextColor(Color.WHITE);
@@ -173,10 +184,13 @@ public class MainActivity extends AppCompatActivity {
                             (popupView.findViewById(R.id.submit)).setOnClickListener(new View.OnClickListener() {
                                 @Override
                                 public void onClick(View view) {
+                                    final long startTime = System.currentTimeMillis();
                                     file_name = ((TextView)popupView.findViewById(R.id.file_name)).getText().toString();
                                     key = ((TextView)popupView.findViewById(R.id.key)).getText().toString();
+
+
                                     try {
-                                        File file = new File(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_encoded.txt", file_name));
+                                        final File file = new File(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_encoded.txt", file_name));
                                         final Uri uri = FileProvider.getUriForFile(MainActivity.this, MainActivity.this.getPackageName()+".provider", file);
                                         FileOutputStream text_encoded = new FileOutputStream(file);
                                         AES aes = new AES();
@@ -184,28 +198,82 @@ public class MainActivity extends AppCompatActivity {
 
                                         try{
                                             text_encoded.write(encrypted.getBytes(StandardCharsets.ISO_8859_1));
-                                            Toast.makeText(getApplicationContext(), "Wrote Encoded Text to File!", Toast.LENGTH_SHORT).show();
-                                            new AlertDialog.Builder(MainActivity.this)
-                                                    .setTitle("Send on Whatsapp")
-                                                    .setMessage("Do you want to sent the generated Text file on Whatsapp?")
-                                                    .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                                            long endTime = System.currentTimeMillis();
+                                            long elapsed = endTime - startTime;
+                                            //Toast.makeText(getApplicationContext(), "Wrote Encoded Text to File!", Toast.LENGTH_SHORT).show();
+                                            LayoutInflater inf = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+                                            final View pv = inf.inflate(R.layout.desc, null);
+                                            final PopupWindow pw = new PopupWindow(pv, width, height, focusable);
+                                            pw.setOutsideTouchable(false);
+                                            pw.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0,0);
+                                            applyDim(root, 0.75f);
+
+                                            ((TextView)pv.findViewById(R.id.wrote)).setTypeface(null, Typeface.BOLD);
+                                            ((TextView)pv.findViewById(R.id.wrote)).setTextSize(26);
+                                            ((TextView)pv.findViewById(R.id.time)).setTypeface(null, Typeface.BOLD);
+                                            ((TextView)pv.findViewById(R.id.time)).setTextSize(18);
+
+                                            ((TextView)pv.findViewById(R.id.time)).setText(String.format("It took %s milliseconds to write to %s.txt!", elapsed, file_name));
+
+                                            pv.findViewById(R.id.close).setOnClickListener(new View.OnClickListener() {
                                                 @Override
-                                                public void onClick(DialogInterface dialogInterface, int i) {
+                                                public void onClick(View view) {
+                                                    pw.dismiss();
+                                                }
+                                            });
+
+                                            pv.findViewById(R.id.send_on_WA).setOnClickListener(new View.OnClickListener() {
+                                                @Override
+                                                public void onClick(View view) {
                                                     Intent share = new Intent();
-                                                    share.setType("*/*");
+                                                    share.setType("text/plain");
                                                     share.setAction(Intent.ACTION_SEND);
                                                     share.putExtra(Intent.EXTRA_STREAM, uri);
                                                     share.setPackage("com.whatsapp");
                                                     share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                                                     startActivity(share);
                                                 }
-                                            }).setNegativeButton("No", new DialogInterface.OnClickListener() {
+                                            });
+
+
+
+                                            pv.findViewById(R.id.view_file).setOnClickListener(new View.OnClickListener() {
                                                 @Override
-                                                public void onClick(DialogInterface dialogInterface, int i) {
-                                                    //
+                                                public void onClick(View view) {
+                                                    pw.dismiss();
+                                                    LayoutInflater i = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+                                                    final View p1 = i.inflate(R.layout.encoded, null);
+                                                    final PopupWindow p2 = new PopupWindow(p1, width, height, focusable);
+                                                    p2.setOutsideTouchable(true);
+                                                    ((TextView)p1.findViewById(R.id.encoded_text)).setText(encoded);
+                                                    ((TextView)p1.findViewById(R.id.title)).setText(String.format("%s_encoded.txt", file_name));
+                                                    ((TextView)p1.findViewById(R.id.title)).setTextColor(Color.WHITE);
+                                                    ((TextView)p1.findViewById(R.id.title)).setTypeface(null, Typeface.BOLD);
+                                                    ((TextView)p1.findViewById(R.id.encoded_text)).setTextColor(Color.WHITE);
+                                                    ((TextView)p1.findViewById(R.id.encoded_text)).setMovementMethod(new ScrollingMovementMethod());
+                                                    p2.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0,0);
+                                                    applyDim(root, 0.75f);
+
+                                                    p2.setOnDismissListener(new PopupWindow.OnDismissListener() {
+                                                        @Override
+                                                        public void onDismiss() {
+                                                            clearDim(root);
+                                                        }
+                                                    });
+
+
                                                 }
-                                            }).setIcon(android.R.drawable.ic_dialog_alert)
-                                            .show();
+                                            });
+
+                                            pw.setOnDismissListener(new PopupWindow.OnDismissListener() {
+                                                @Override
+                                                public void onDismiss() {
+                                                    clearDim(root);
+                                                }
+                                            });
+
+
+
                                         }catch (Exception e){
                                             e.printStackTrace();
                                             Toast.makeText(getApplicationContext(), "Could not write Encoded Text to File!", Toast.LENGTH_SHORT).show();
@@ -219,14 +287,6 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             });
 
-                            popupView.setOnTouchListener(new View.OnTouchListener() {
-                                @Override
-                                public boolean onTouch(View v, MotionEvent event) {
-                                    popupWindow.dismiss();
-                                    clearDim(root);
-                                    return true;
-                                }
-                            });
 
                             popupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
                                 @Override
@@ -258,9 +318,9 @@ public class MainActivity extends AppCompatActivity {
                             getSystemService(LAYOUT_INFLATER_SERVICE);
                     final View popupView = inflater.inflate(R.layout.popup2, null);
 
-                    int width = ViewGroup.LayoutParams.WRAP_CONTENT;
-                    int height = ViewGroup.LayoutParams.WRAP_CONTENT;
-                    boolean focusable = true;
+                    final int width = ViewGroup.LayoutParams.WRAP_CONTENT;
+                    final int height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                    final boolean focusable = true;
                     final PopupWindow popupWindow = new PopupWindow(popupView, width, height, focusable);
                     popupWindow.setOutsideTouchable(false);
 
@@ -275,6 +335,7 @@ public class MainActivity extends AppCompatActivity {
                     (popupView.findViewById(R.id.submit2)).setOnClickListener(new View.OnClickListener() {
                         @Override
                         public void onClick(View view) {
+                            final long startTime = System.currentTimeMillis();
                             key = ((TextView) popupView.findViewById(R.id.key2)).getText().toString();
                             popupWindow.dismiss();
 
@@ -313,67 +374,119 @@ public class MainActivity extends AppCompatActivity {
 
                                 byte[] d_bytes = decrypted.getBytes(StandardCharsets.ISO_8859_1);
                                 File out;
+                                final Uri vid;
                                 try {
                                     out = new File(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_decrypted.mp4", file_name));
+                                    vid = FileProvider.getUriForFile(MainActivity.this, MainActivity.this.getPackageName()+".provider", out);
                                     Log.i("Video", "Success");
                                     Log.i("output", out.getAbsolutePath());
                                     OutputStream os = new FileOutputStream(out);
                                     os.write(d_bytes);
-                                    Toast.makeText(getApplicationContext(), "Video Creation Successful!", Toast.LENGTH_SHORT).show();
+                                    long endTime = System.currentTimeMillis();
+                                    long elapsed = endTime - startTime;
+                                    LayoutInflater inf = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+                                    final View pv = inf.inflate(R.layout.desc, null);
+                                    final PopupWindow pw = new PopupWindow(pv, width, height, focusable);
+                                    pw.setOutsideTouchable(false);
+                                    pw.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0,0);
+                                    applyDim(root, 0.75f);
 
 
-                                    try {
-                                        final VideoView videoView = findViewById(R.id.videoView);
-                                        final Uri u = Uri.parse(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_decrypted.mp4", file_name));
-                                        videoView.setVideoURI(u);
-                                        videoView.setVisibility(View.VISIBLE);
-                                        Toast.makeText(getApplicationContext(), "Playing Output Video", Toast.LENGTH_SHORT).show();
-                                        (findViewById(R.id.encrypt)).setVisibility(View.INVISIBLE);
-                                        (findViewById(R.id.decrypt)).setVisibility(View.INVISIBLE);
-                                        videoView.start();
-                                        /*videoView.setOnTouchListener(new View.OnTouchListener() {
-                                            @Override
-                                            public boolean onTouch(View view, MotionEvent motionEvent) {
-                                                videoView.stopPlayback();
-                                                videoView.setVisibility(View.INVISIBLE);
-                                                (findViewById(R.id.encrypt)).setVisibility(View.VISIBLE);
-                                                (findViewById(R.id.decrypt)).setVisibility(View.VISIBLE);
-                                                return true;
-                                            }
-                                        });*/
+                                    ((TextView)pv.findViewById(R.id.view_file)).setText(R.string.play_video);
+                                    ((TextView)pv.findViewById(R.id.wrote)).setTypeface(null, Typeface.BOLD);
+                                    ((TextView)pv.findViewById(R.id.wrote)).setTextSize(26);
+                                    ((TextView)pv.findViewById(R.id.time)).setTypeface(null, Typeface.BOLD);
+                                    ((TextView)pv.findViewById(R.id.time)).setTextSize(18);
 
-                                        videoView.setOnLongClickListener(new View.OnLongClickListener() {
-                                            @Override
-                                            public boolean onLongClick(View view) {
-                                                new AlertDialog.Builder(MainActivity.this)
-                                                        .setTitle("Send on Whatsapp")
-                                                        .setMessage("Do you want to sent the generated Video on Whatsapp?")
-                                                        .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                                    ((TextView)pv.findViewById(R.id.time)).setText(String.format("It took %s milliseconds to decrypt and make %s_decrypted.mp4!", elapsed, file_name));
+
+                                    pv.findViewById(R.id.close).setOnClickListener(new View.OnClickListener() {
+                                        @Override
+                                        public void onClick(View view) {
+                                            pw.dismiss();
+                                        }
+                                    });
+
+
+                                    pv.findViewById(R.id.view_file).setOnClickListener(new View.OnClickListener() {
+                                        @Override
+                                        public void onClick(View view) {
+                                            pw.dismiss();
+                                            try {
+                                                final VideoView videoView = findViewById(R.id.videoView);
+                                                final Uri u = Uri.parse(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_decrypted.mp4", file_name));
+                                                videoView.setVideoURI(u);
+                                                videoView.setVisibility(View.VISIBLE);
+                                                Toast.makeText(getApplicationContext(), "Playing Output Video", Toast.LENGTH_SHORT).show();
+                                                (findViewById(R.id.encrypt)).setVisibility(View.INVISIBLE);
+                                                (findViewById(R.id.decrypt)).setVisibility(View.INVISIBLE);
+                                                videoView.start();
+                                                videoView.setOnClickListener(new View.OnClickListener() {
+                                                    @Override
+                                                    public void onClick(View view) {
+                                                        videoView.stopPlayback();
+                                                        videoView.setVisibility(View.INVISIBLE);
+                                                        (findViewById(R.id.encrypt)).setVisibility(View.VISIBLE);
+                                                        (findViewById(R.id.decrypt)).setVisibility(View.VISIBLE);
+                                                    }
+                                                });
+
+                                                videoView.setOnLongClickListener(new View.OnLongClickListener() {
+                                                    @Override
+                                                    public boolean onLongClick(View view) {
+                                                        new AlertDialog.Builder(MainActivity.this)
+                                                                .setTitle("Send on Whatsapp")
+                                                                .setMessage("Do you want to sent the generated Video on Whatsapp?")
+                                                                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                                                                    @Override
+                                                                    public void onClick(DialogInterface dialogInterface, int i) {
+                                                                        Intent share = new Intent();
+                                                                        share.setAction(Intent.ACTION_SEND);
+                                                                        share.setType("video/mp4");
+                                                                        share.putExtra(Intent.EXTRA_STREAM, u);
+                                                                        share.setPackage("com.whatsapp");
+                                                                        share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                                                        startActivity(share);
+                                                                    }
+                                                                }).setNegativeButton("No", new DialogInterface.OnClickListener() {
                                                             @Override
                                                             public void onClick(DialogInterface dialogInterface, int i) {
-                                                                Intent share = new Intent();
-                                                                share.setAction(Intent.ACTION_SEND);
-                                                                share.setType("*/*");
-                                                                share.putExtra(Intent.EXTRA_STREAM, u);
-                                                                share.setPackage("com.whatsapp");
-                                                                share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                                                                startActivity(share);
+                                                                //
                                                             }
-                                                        }).setNegativeButton("No", new DialogInterface.OnClickListener() {
-                                                    @Override
-                                                    public void onClick(DialogInterface dialogInterface, int i) {
-                                                        //
+                                                        }).setIcon(android.R.drawable.ic_dialog_alert)
+                                                                .show();
+                                                        return true;
                                                     }
-                                                }).setIcon(android.R.drawable.ic_dialog_alert)
-                                                        .show();
-                                                return true;
-                                            }
-                                        });
+                                                });
 
-                                    } catch (Exception e) {
-                                        e.printStackTrace();
-                                        Toast.makeText(getApplicationContext(), "Video Created. Check Storage!", Toast.LENGTH_SHORT).show();
-                                    }
+                                            } catch (Exception e) {
+                                                e.printStackTrace();
+                                                Toast.makeText(getApplicationContext(), "Video Created. Check Storage!", Toast.LENGTH_SHORT).show();
+                                            }
+
+                                        }
+                                    });
+
+                                    pv.findViewById(R.id.send_on_WA).setOnClickListener(new View.OnClickListener() {
+                                        @Override
+                                        public void onClick(View view) {
+                                            Intent share = new Intent();
+                                            share.setAction(Intent.ACTION_SEND);
+                                            share.setType("*/*");
+                                            share.putExtra(Intent.EXTRA_STREAM, vid);
+                                            share.setPackage("com.whatsapp");
+                                            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                            startActivity(share);
+                                        }
+                                    });
+
+                                    pw.setOnDismissListener(new PopupWindow.OnDismissListener() {
+                                        @Override
+                                        public void onDismiss() {
+                                            clearDim(root);
+                                        }
+                                    });
+
                                     os.close();
                                 } catch (Exception e) {
                                     e.printStackTrace();
@@ -387,24 +500,12 @@ public class MainActivity extends AppCompatActivity {
                     });
 
 
-                    popupView.setOnTouchListener(new View.OnTouchListener() {
-                        @Override
-                        public boolean onTouch(View v, MotionEvent event) {
-                            popupWindow.dismiss();
-                            clearDim(root);
-                            return true;
-                        }
-                    });
-
                     popupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
                         @Override
                         public void onDismiss() {
                             clearDim(root);
                         }
                     });
-
-
-
 
                 }catch (Exception e){
                     Toast.makeText(getApplicationContext(), "Error While Opening file!", Toast.LENGTH_SHORT).show();
@@ -431,4 +532,14 @@ public class MainActivity extends AppCompatActivity {
         ViewGroupOverlay overlay = parent.getOverlay();
         overlay.clear();
     }
+
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        (findViewById(R.id.encrypt)).setVisibility(View.VISIBLE);
+        (findViewById(R.id.decrypt)).setVisibility(View.VISIBLE);
+        (findViewById(R.id.videoView)).setVisibility(View.INVISIBLE);
+    }
+
 }
