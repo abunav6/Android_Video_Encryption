@@ -55,14 +55,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+
         File dir = new File("/storage/emulated/0/VideoEncryptorFiles");
         dir.mkdir();
+
 
         (findViewById(R.id.encrypt)).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
-
 
                 Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
                 intent.setType("video/mp4");
@@ -171,7 +171,7 @@ public class MainActivity extends AppCompatActivity {
 
                             final LayoutInflater inflater = (LayoutInflater)
                                     getSystemService(LAYOUT_INFLATER_SERVICE);
-                            final View popupView = inflater.inflate(R.layout.popup, null);
+                            final View popupView = inflater.inflate(R.layout.save_encrypted, null);
 
                             final int width = LinearLayout.LayoutParams.WRAP_CONTENT;
                             final int height = LinearLayout.LayoutParams.WRAP_CONTENT;
@@ -213,12 +213,12 @@ public class MainActivity extends AppCompatActivity {
                                         uri = null;
                                         Toast.makeText(getApplicationContext(), "Error while creating Text File!", Toast.LENGTH_SHORT).show();
                                     }
-                                    AES aes = new AES();
-                                    String encrypted = aes.encrypt(encoded, key);
+
+                                    String encrypted = AES.encrypt(encoded, key);
                                     if(flag) {
                                         boolean temp = true;
                                         try {
-                                            text_encoded.write(encrypted.getBytes(StandardCharsets.ISO_8859_1));
+                                            text_encoded.write(encrypted != null ? encrypted.getBytes(StandardCharsets.ISO_8859_1) : new byte[0]);
                                         }catch (Exception e) {
                                             e.printStackTrace();
                                             temp = false;
@@ -229,13 +229,13 @@ public class MainActivity extends AppCompatActivity {
                                             long elapsed = endTime - startTime;
                                             //Toast.makeText(getApplicationContext(), "Wrote Encoded Text to File!", Toast.LENGTH_SHORT).show();
                                             LayoutInflater inf = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
-                                            final View pv = inf.inflate(R.layout.desc, null);
+                                            final View pv = inf.inflate(R.layout.decrypted_desc, null);
                                             final PopupWindow pw = new PopupWindow(pv, width, height, focusable);
                                             pw.setOutsideTouchable(false);
                                             pw.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
                                             applyDim(root, 0.75f);
 
-                                            ((TextView) pv.findViewById(R.id.wrote)).setText("Wrote Video from Encoded Text");
+                                            ((TextView) pv.findViewById(R.id.wrote)).setText(R.string.encoded_wrote);
                                             ((TextView) pv.findViewById(R.id.wrote)).setTypeface(null, Typeface.BOLD);
                                             ((TextView) pv.findViewById(R.id.wrote)).setTextSize(26);
                                             ((TextView) pv.findViewById(R.id.time)).setTypeface(null, Typeface.BOLD);
@@ -263,12 +263,17 @@ public class MainActivity extends AppCompatActivity {
                                                 @Override
                                                 public void onClick(View view) {
                                                     pw.dismiss();
+                                                    VideoView load = findViewById(R.id.loading);
+                                                    load.setVideoPath("android.resource://com.example.video_encryption/"+R.raw.loading);
+                                                    load.start();
                                                     LayoutInflater i = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
                                                     final View p1 = i.inflate(R.layout.encoded, null);
                                                     final PopupWindow p2 = new PopupWindow(p1, width, height, focusable);
                                                     p2.setOutsideTouchable(true);
-                                                    ((TextView) p1.findViewById(R.id.encoded_text)).setText(encoded);
                                                     Toast.makeText(getApplicationContext(), "Wait while the encoded text is loaded, this may take a while", Toast.LENGTH_LONG).show();
+                                                    ((TextView) p1.findViewById(R.id.encoded_text)).setText(encoded);
+                                                    load.stopPlayback();
+                                                    load.setVisibility(View.INVISIBLE);
                                                     ((TextView) p1.findViewById(R.id.title)).setText(String.format("%s_encoded.txt", file_name));
                                                     ((TextView) p1.findViewById(R.id.title)).setTextColor(Color.WHITE);
                                                     ((TextView) p1.findViewById(R.id.title)).setTypeface(null, Typeface.BOLD);
@@ -318,7 +323,7 @@ public class MainActivity extends AppCompatActivity {
             case TEXT_SELECT_CODE:
                 try {
                     LayoutInflater inflater = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
-                    final View popupView = inflater.inflate(R.layout.popup2, null);
+                    final View popupView = inflater.inflate(R.layout.decrypt, null);
 
                     final int width = ViewGroup.LayoutParams.WRAP_CONTENT;
                     final int height = ViewGroup.LayoutParams.WRAP_CONTENT;
@@ -412,7 +417,7 @@ public class MainActivity extends AppCompatActivity {
                                             long endTime = System.currentTimeMillis();
                                             long elapsed = endTime - startTime;
                                             LayoutInflater inf = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
-                                            final View pv = inf.inflate(R.layout.desc, null);
+                                            final View pv = inf.inflate(R.layout.decrypted_desc, null);
                                             final PopupWindow pw = new PopupWindow(pv, width, height, focusable);
                                             pw.setOutsideTouchable(false);
                                             pw.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
@@ -420,6 +425,7 @@ public class MainActivity extends AppCompatActivity {
 
 
                                             ((TextView) pv.findViewById(R.id.view_file)).setText(R.string.play_video);
+                                            ((TextView) pv.findViewById(R.id.wrote)).setText(R.string.wrote_vid);
                                             ((TextView) pv.findViewById(R.id.wrote)).setTypeface(null, Typeface.BOLD);
                                             ((TextView) pv.findViewById(R.id.wrote)).setTextSize(26);
                                             ((TextView) pv.findViewById(R.id.time)).setTypeface(null, Typeface.BOLD);
@@ -439,8 +445,7 @@ public class MainActivity extends AppCompatActivity {
                                                 @Override
                                                 public void onClick(View view) {
                                                     pw.dismiss();
-                                                    final VideoView videoView = findViewById(R.id.videoView);
-                                                    ;
+                                                    final VideoView videoView = findViewById(R.id.videoView);;
                                                     Uri u = null;
                                                     boolean f = true;
 

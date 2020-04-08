@@ -10,4 +10,6 @@
     <string name="close">Close</string>
     <string name="send_on_whatsapp">Send on WhatsApp</string>
     <string name="play_video">Play Video</string>
+    <string name="wrote_vid">Wrote Video from Encoded Text</string>
+    <string name="loading_text">Please Wait while text is loaded</string>
 </resources>
