@@ -62,8 +62,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
 
-
-
                 Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
                 intent.setType("video/mp4");
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -213,12 +211,12 @@ public class MainActivity extends AppCompatActivity {
                                         uri = null;
                                         Toast.makeText(getApplicationContext(), "Error while creating Text File!", Toast.LENGTH_SHORT).show();
                                     }
-                                    AES aes = new AES();
-                                    String encrypted = aes.encrypt(encoded, key);
+
+                                    String encrypted = AES.encrypt(encoded, key);
                                     if(flag) {
                                         boolean temp = true;
                                         try {
-                                            text_encoded.write(encrypted.getBytes(StandardCharsets.ISO_8859_1));
+                                            text_encoded.write(encrypted != null ? encrypted.getBytes(StandardCharsets.ISO_8859_1) : new byte[0]);
                                         }catch (Exception e) {
                                             e.printStackTrace();
                                             temp = false;
@@ -235,7 +233,7 @@ public class MainActivity extends AppCompatActivity {
                                             pw.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
                                             applyDim(root, 0.75f);
 
-                                            ((TextView) pv.findViewById(R.id.wrote)).setText("Wrote Video from Encoded Text");
+                                            ((TextView) pv.findViewById(R.id.wrote)).setText(R.string.wrote_vid);
                                             ((TextView) pv.findViewById(R.id.wrote)).setTypeface(null, Typeface.BOLD);
                                             ((TextView) pv.findViewById(R.id.wrote)).setTextSize(26);
                                             ((TextView) pv.findViewById(R.id.time)).setTypeface(null, Typeface.BOLD);
