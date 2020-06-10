@@ -1,4 +1,4 @@
-package com.example.video_encryption;
+package com.abunav.vidsec;
 
 import android.Manifest;
 import android.content.DialogInterface;
@@ -264,7 +264,7 @@ public class MainActivity extends AppCompatActivity {
                                                 public void onClick(View view) {
                                                     pw.dismiss();
                                                     VideoView load = findViewById(R.id.loading);
-                                                    load.setVideoPath("android.resource://com.example.video_encryption/"+R.raw.loading);
+                                                    load.setVideoPath("android.resource://com.abunav.vidsec/"+R.raw.loading);
                                                     load.start();
                                                     LayoutInflater i = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
                                                     final View p1 = i.inflate(R.layout.encoded, null);

@@ -1,4 +1,4 @@
-package  com.example.video_encryption;
+package com.abunav.vidsec;
 
 import android.os.Build;
 

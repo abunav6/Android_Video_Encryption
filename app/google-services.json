@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "348127924483",
+    "firebase_url": "https://video-security.firebaseio.com",
+    "project_id": "video-security",
+    "storage_bucket": "video-security.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:348127924483:android:be0ea6f9286432bc6d9936",
+        "android_client_info": {
+          "package_name": "com.abunav.vidsec"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "348127924483-40pusk1vgrbtudsqsgav9pqbquncujag.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7DywDAi8Ijjevt_ZIyyQEPRF3L7ZkbMI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "348127924483-40pusk1vgrbtudsqsgav9pqbquncujag.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

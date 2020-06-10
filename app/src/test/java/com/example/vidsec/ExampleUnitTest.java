@@ -1,4 +1,4 @@
-package com.example.video_encryption;
+package com.example.vidsec;
 
 import org.junit.Test;
 
