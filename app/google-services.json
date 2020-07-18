@@ -1,34 +1,42 @@
 {
   "project_info": {
-    "project_number": "348127924483",
-    "firebase_url": "https://video-security.firebaseio.com",
-    "project_id": "video-security",
-    "storage_bucket": "video-security.appspot.com"
+    "project_number": "213708969145",
+    "firebase_url": "https://video-security-app.firebaseio.com",
+    "project_id": "video-security-app",
+    "storage_bucket": "video-security-app.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:348127924483:android:be0ea6f9286432bc6d9936",
+        "mobilesdk_app_id": "1:213708969145:android:37943c39b0c8e29fea3768",
         "android_client_info": {
           "package_name": "com.abunav.vidsec"
         }
       },
       "oauth_client": [
         {
-          "client_id": "348127924483-40pusk1vgrbtudsqsgav9pqbquncujag.apps.googleusercontent.com",
+          "client_id": "213708969145-154s6ao8arovubjeqjqbsrh5bhebgn1p.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.abunav.vidsec",
+            "certificate_hash": "eae2bbd82df79c29a5110bc7ac90e84d57358615"
+          }
+        },
+        {
+          "client_id": "213708969145-47bdm2h7egosh6j4lup64tju86sl65tm.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyB7DywDAi8Ijjevt_ZIyyQEPRF3L7ZkbMI"
+          "current_key": "AIzaSyCmtNaVTGMSb1zwLestBQA1EY3zZgeBplE"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "348127924483-40pusk1vgrbtudsqsgav9pqbquncujag.apps.googleusercontent.com",
+              "client_id": "213708969145-47bdm2h7egosh6j4lup64tju86sl65tm.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

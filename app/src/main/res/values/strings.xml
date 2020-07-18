@@ -8,10 +8,16 @@
     <string name="encoded_wrote">Wrote Encoded Text To File</string>
     <string name="view_file">View File</string>
     <string name="close">Close</string>
-    <string name="send_on_whatsapp">Send on WhatsApp</string>
+    <string name="give_access">Give Access to Other Users</string>
     <string name="play_video">Play Video</string>
     <string name="wrote_vid">Wrote Video from Encoded Text</string>
 
     <string name="loading_text">Please Wait while text is loaded</string>
+    <string name="title_activity_login_page">Video Security</string>
+    <!--
+    This string is used for square devices and overridden by hello_world in
+    values-round/strings.xml for round devices.
+    -->
+    <string name="hello_world">Hello Square World!</string>
 
 </resources>

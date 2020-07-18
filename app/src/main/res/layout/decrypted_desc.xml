@@ -31,46 +31,46 @@
          />
 
     <Button
-        android:layout_width="165dp"
-        android:layout_height="wrap_content"
-        android:background="@drawable/button"
-        android:textColor="#ffffff"
-        android:text="@string/view_file"
         android:id="@+id/view_file"
+        android:layout_width="217dp"
+        android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="10dp"
         android:layout_marginStart="20dp"
+        android:layout_marginTop="10dp"
         android:layout_marginEnd="20dp"
-        android:layout_marginTop="10dp"/>
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/button"
+        android:text="@string/view_file"
+        android:textColor="#ffffff" />
 
     <Button
-        android:layout_marginBottom="10dp"
-        android:layout_marginStart="20dp"
-        android:layout_marginEnd="20dp"
-        android:layout_marginTop="10dp"
-        android:layout_width="165dp"
+        android:id="@+id/give_access"
+        android:layout_width="219dp"
         android:layout_height="wrap_content"
-        android:background="@drawable/button"
-        android:textColor="#ffffff"
-        android:id="@+id/send_on_WA"
-        android:text="@string/send_on_whatsapp"
         android:layout_gravity="center_horizontal"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/button"
+        android:text="@string/give_access"
+        android:textColor="#ffffff"
 
 
         />
 
     <Button
-        android:layout_width="165dp"
-        android:layout_height="wrap_content"
-        android:background="@drawable/button"
-        android:textColor="#ffffff"
-        android:text="@string/close"
         android:id="@+id/close"
+        android:layout_width="219dp"
+        android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="20dp"
         android:layout_marginStart="20dp"
+        android:layout_marginTop="10dp"
         android:layout_marginEnd="20dp"
-        android:layout_marginTop="10dp"/>
+        android:layout_marginBottom="20dp"
+        android:background="@drawable/button"
+        android:text="@string/close"
+        android:textColor="#ffffff" />
 
 
 
