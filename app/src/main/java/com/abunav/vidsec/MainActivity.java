@@ -49,6 +49,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.OnProgressListener;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
@@ -99,12 +100,10 @@ public class MainActivity extends AppCompatActivity {
 
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user != null) {
-            // Name, email address, and profile photo Url
             email = user.getEmail();
-            ((TextView)findViewById(R.id.signedInAs)).setVisibility(View.VISIBLE);
-            ((TextView)findViewById(R.id.signedInAs)).setText("Signed in using: ".concat(email));
+            findViewById(R.id.signedInAs).setVisibility(View.VISIBLE);
+            ((TextView)findViewById(R.id.signedInAs)).setText(email);
         }
-
 
 
         File dir = new File("/storage/emulated/0/VideoEncryptorFiles");
@@ -279,7 +278,7 @@ public class MainActivity extends AppCompatActivity {
                                                 long endTime = System.currentTimeMillis();
                                                 long elapsed = endTime - startTime;
                                                 //Toast.makeText(getApplicationContext(), "Wrote Encoded Text to File!", Toast.LENGTH_SHORT).show();
-                                                findViewById(R.id.signedInAs).setVisibility(View.INVISIBLE);
+
                                                 LayoutInflater inf = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
                                                 final View pv = inf.inflate(R.layout.decrypted_desc, null);
                                                 final PopupWindow pw = new PopupWindow(pv, width, height, focusable);
@@ -318,7 +317,7 @@ public class MainActivity extends AppCompatActivity {
 
 
                                                             InputStream stream = new FileInputStream(new File(file_path));
-                                                            final UploadTask uploadTask = encryptedTextFile.putStream(stream);
+                                                            final UploadTask uploadTask = encryptedTextFile.putFile(Uri.fromFile(new File(file_path)));
 
                                                             uploadTask.addOnFailureListener(new OnFailureListener() {
                                                                 @Override
@@ -356,7 +355,7 @@ public class MainActivity extends AppCompatActivity {
                                                                                     }
                                                                                 });
 
-                                                                                ArrayAdapter<String> adapter = new ArrayAdapter<String>(getApplicationContext(), android.R.layout.simple_list_item_1, users);
+                                                                                ArrayAdapter<String> adapter = new ArrayAdapter<String>(getApplicationContext(), R.layout.white_list_text, users);
                                                                                 list_of_users.setAdapter(adapter);
 
                                                                                 reference.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -371,13 +370,10 @@ public class MainActivity extends AppCompatActivity {
                                                                                             users.add(user.replace(",","."));
                                                                                             public_keys.add(snap.getValue().toString());
 
-
+                                                                                            Log.i("Added User",  user);
                                                                                         }
+                                                                                        Toast.makeText(getApplicationContext(), "Choose one user from this list to which the JSON File will be sent", Toast.LENGTH_LONG).show();
                                                                                         adapter.notifyDataSetChanged();
-                                                                                        if(users.size()<=1){
-                                                                                            list_of_users.setVisibility(View.INVISIBLE);
-                                                                                            view1.findViewById(R.id.listEmptyText).setVisibility(View.VISIBLE);
-                                                                                        }
 
                                                                                         list_of_users.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                                                                                             @Override
@@ -422,6 +418,28 @@ public class MainActivity extends AppCompatActivity {
                                                                             }
                                                                         });
                                                                     }
+                                                                }
+                                                            }).addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
+                                                                @Override
+                                                                public void onProgress(@NonNull UploadTask.TaskSnapshot taskSnapshot) {
+                                                                    Long uploaded = taskSnapshot.getBytesTransferred();
+                                                                    Long total = taskSnapshot.getTotalByteCount();
+                                                                    Log.i("Uploaded", String.valueOf(uploaded));
+                                                                    Log.i("Total", String.valueOf(total));
+                                                                    LayoutInflater inflater1 = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+                                                                    final View view1 = inflater1.inflate(R.layout.progress, null);
+                                                                    final PopupWindow popupWindow1 = new PopupWindow(view1, width, height, focusable);
+                                                                    popupWindow1.setOutsideTouchable(true);
+                                                                    popupWindow1.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
+                                                                    applyDim(root, 0.75f);
+
+                                                                    popupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
+                                                                        @Override
+                                                                        public void onDismiss() {
+                                                                            clearDim(root);
+                                                                        }
+                                                                    });
+
                                                                 }
                                                             });
 
@@ -628,7 +646,6 @@ public class MainActivity extends AppCompatActivity {
                                                             Toast.makeText(getApplicationContext(), "Playing Output Video", Toast.LENGTH_SHORT).show();
                                                             (findViewById(R.id.encrypt)).setVisibility(View.INVISIBLE);
                                                             (findViewById(R.id.decrypt)).setVisibility(View.INVISIBLE);
-                                                            (findViewById(R.id.signedInAs)).setVisibility(View.INVISIBLE);
                                                             videoView.start();
                                                             videoView.setOnClickListener(new View.OnClickListener() {
                                                                 @Override
@@ -637,7 +654,6 @@ public class MainActivity extends AppCompatActivity {
                                                                     videoView.setVisibility(View.INVISIBLE);
                                                                     (findViewById(R.id.encrypt)).setVisibility(View.VISIBLE);
                                                                     (findViewById(R.id.decrypt)).setVisibility(View.VISIBLE);
-                                                                    (findViewById(R.id.signedInAs)).setVisibility(View.VISIBLE);
                                                                 }
                                                             });
 
@@ -704,7 +720,6 @@ public class MainActivity extends AppCompatActivity {
     public void onBackPressed() {
         (findViewById(R.id.encrypt)).setVisibility(View.VISIBLE);
         (findViewById(R.id.decrypt)).setVisibility(View.VISIBLE);
-        (findViewById(R.id.signedInAs)).setVisibility(View.VISIBLE);
         (findViewById(R.id.videoView)).setVisibility(View.INVISIBLE);
     }
 
