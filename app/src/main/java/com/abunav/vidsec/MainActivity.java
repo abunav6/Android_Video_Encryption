@@ -52,6 +52,8 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.OnProgressListener;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import org.json.JSONObject;
 
@@ -59,6 +61,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -70,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int VIDEO_SELECT_CODE = 0;
     private static final int TEXT_SELECT_CODE = 1;
+    private static final int DECRYPT_FROM_JSON = 2;
     private String file_name, key;
     private String email;
     private String downloadURL;
@@ -162,6 +166,31 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(getApplicationContext(), "Please install a file manager!", Toast.LENGTH_LONG).show();
                 }
 
+            }
+        });
+
+        findViewById(R.id.decryptFromJSON).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.setType("application/octet-stream");
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+
+                if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+                }
+
+                if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+                }
+
+                try{
+                    startActivityForResult(
+                            Intent.createChooser(intent, "Choose the JSON File you want to decrypt"), DECRYPT_FROM_JSON
+                    );
+                }catch (Exception e){
+                    Toast.makeText(getApplicationContext(), "Install a File Manager!", Toast.LENGTH_LONG).show();
+                }
             }
         });
 
@@ -439,7 +468,6 @@ public class MainActivity extends AppCompatActivity {
                                                                             clearDim(root);
                                                                         }
                                                                     });
-
                                                                 }
                                                             });
 
@@ -698,6 +726,30 @@ public class MainActivity extends AppCompatActivity {
 
 
                     break;
+
+
+                case DECRYPT_FROM_JSON:
+                    Uri jsonFileURI = data.getData();
+                    String uri_path = "storage/emulated/0/".concat(jsonFileURI.getPath().split(":")[1]);
+                    JsonParser parser = new JsonParser();
+
+                    try (FileReader reader = new FileReader(uri_path)){
+                        Object obj =  parser.parse(reader);
+                        JsonObject receivedEncryptedVideo = (JsonObject) obj;
+                        Log.i("Download URL", receivedEncryptedVideo.get("download-url").toString());
+                        Log.i("Sender", receivedEncryptedVideo.get("sender-emailID").toString());
+                        Log.i("Encrypted Key", receivedEncryptedVideo.get("encrypted-AES-key").toString());
+
+                        /*
+                            Need to decrypt the AES key using the RSA decrypt method. The user needs to go and choose his private key file, get the key from that, authorize the decryption using his login password
+                            and then, the AES key will be visible to the user (preferrable copy to clipboard)
+                            Then, get that file from the download URL and then use the above function(s) to get the decrypted video file
+                         */
+                    }catch (Exception e){
+                        Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                    }
+                    break;
+
 
             }
         }
