@@ -11,7 +11,7 @@
     <string name="give_access">Give Access to Other Users</string>
     <string name="play_video">Play Video</string>
     <string name="wrote_vid">Wrote Video from Encoded Text</string>
-
+    <string name="enter_login_pass">Enter your Login Password</string>
     <string name="loading_text">Please Wait while text is loaded</string>
     <string name="title_activity_login_page">Video Security</string>
     <!--

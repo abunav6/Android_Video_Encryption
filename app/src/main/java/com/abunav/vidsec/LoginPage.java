@@ -20,7 +20,6 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.Base64;
@@ -43,13 +42,22 @@ public class LoginPage extends AppCompatActivity {
                             // need to add this user to the database along with their public key and store the private key internally
                             try {
                                 RSA rsa = new RSA();
-                                String publicKey = Base64.getEncoder().encodeToString(rsa.getPublicKey().getEncoded());
-                                String privateKey = Base64.getEncoder().encodeToString(rsa.getPrivateKey().getEncoded());
+
+                                byte[] encodedPublicKey = rsa.getPublicKey().getEncoded();
+                                String b64PublicKey = Base64.getEncoder().encodeToString(encodedPublicKey);
+
+                                byte[] encodedPrivateKey = rsa.getPrivateKey().getEncoded();
+                                String b64PrivateKey = Base64.getEncoder().encodeToString(encodedPrivateKey);
+
+                                Log.i("B64 PVT Key", b64PrivateKey);
+                                Log.i("B64 Public Key", b64PublicKey);
 
 
                                 // encrypt private key with the user's password and save in the local storage.
+                                String encryptedPrivateKey = AES.encrypt(b64PrivateKey, password);
 
-                                String encryptedPrivateKey = AES.encrypt(privateKey, password);
+                                Log.i("Encrypted Private Key", encryptedPrivateKey);
+
                                 String path = "storage/emulated/0/VideoEncryptorFiles/key/"+email+"/";
                                 File dir = new File(path);
                                 if (!dir.exists()) {
@@ -57,10 +65,9 @@ public class LoginPage extends AppCompatActivity {
                                 }
                                 File file = new File(path + "private_key_encrypted.txt");
                                 try {
-                                    FileWriter fw = new FileWriter(file.getAbsoluteFile());
-                                    BufferedWriter bw = new BufferedWriter(fw);
-                                    bw.write(encryptedPrivateKey);
-                                    bw.close();
+                                    FileWriter fileWriter = new FileWriter(file);
+                                    fileWriter.write(encryptedPrivateKey);
+                                    fileWriter.close();
                                     Toast.makeText(getApplicationContext(), "Your Private Key has been encrypted and written to /VideoEncryptorFiles/keys in your internal storage. You can decrypt this key while decrypting a text file by using your login password.", Toast.LENGTH_LONG).show();
                                 } catch (Exception e) {
                                     e.printStackTrace();
@@ -80,8 +87,9 @@ public class LoginPage extends AppCompatActivity {
                                 String fileContents = stringBuilder.toString();
                                 String decryptedPrivateKey = AES.decrypt(fileContents, password);
                                 Log.i("AESSSSS", String.valueOf(decryptedPrivateKey.equals(privateKey)));
-
                                 */
+
+
 
                                 FirebaseDatabase rootnode;
                                 DatabaseReference reference;
@@ -90,7 +98,7 @@ public class LoginPage extends AppCompatActivity {
                                 reference = rootnode.getReference("Users");
 
                                 String mail = email.replace(".",",");
-                                reference.child(mail).setValue(publicKey);
+                                reference.child(mail).setValue(b64PublicKey);
                                 Toast.makeText(getApplicationContext(), "Your public key has been uploaded to the server. Any user who wants to send you a video can use this key to encrypt their file!", Toast.LENGTH_LONG).show();
                             }catch (Exception e) {
                                 e.printStackTrace();
