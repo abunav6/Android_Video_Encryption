@@ -36,10 +36,8 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
-import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -47,6 +45,7 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.storage.FileDownloadTask;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.OnProgressListener;
 import com.google.firebase.storage.StorageReference;
@@ -64,11 +63,12 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -124,12 +124,7 @@ public class MainActivity extends AppCompatActivity {
                 intent.setType("video/mp4");
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
 
-                if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
-                }
-                if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
-                }
+                checkReadAndWritePermissions();
 
                 try {
                     startActivityForResult(
@@ -151,13 +146,7 @@ public class MainActivity extends AppCompatActivity {
                 intent.setType("text/plain");
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
 
-                if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
-                }
-
-                if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
-                }
+                checkReadAndWritePermissions();
 
                 try {
                     startActivityForResult(
@@ -178,14 +167,7 @@ public class MainActivity extends AppCompatActivity {
                 intent.setType("application/octet-stream");
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
 
-                if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
-                }
-
-                if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
-                }
-
+                checkReadAndWritePermissions();
                 try {
                     startActivityForResult(
                             Intent.createChooser(intent, "Choose the JSON File you want to decrypt"), DECRYPT_FROM_JSON
@@ -215,83 +197,12 @@ public class MainActivity extends AppCompatActivity {
 
 
             case DECRYPT_FROM_JSON:
-                Uri jsonFileURI = data.getData();
-                String uri_path = "storage/emulated/0/".concat(jsonFileURI.getPath().split(":")[1]);
-                Log.i("Path", uri_path);
-                JsonParser parser = new JsonParser();
-
-                try (FileReader reader = new FileReader(uri_path)) {
-                    Object obj = parser.parse(reader);
-                    JsonObject receivedEncryptedVideo = (JsonObject) obj;
-                    downloadURL = receivedEncryptedVideo.get("download-url").toString();
-                    RSAEncryptedAESKey = receivedEncryptedVideo.get("encrypted-AES-key").toString();
-                    String senderEmailID = receivedEncryptedVideo.get("sender-emailID").toString();
-                    Toast.makeText(getApplicationContext(), "Choose your private key from VideoEncryptorFiles folder", Toast.LENGTH_LONG).show();
-                    getDecryptedKey();
-                } catch (Exception e) {
-                    Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
-                }
+                decryptFromJSON(data);
                 break;
 
             case KEY_SELECT_CODE:
-                Uri privateKeyFile = null;
-                try {
-                    privateKeyFile = data.getData();
-                }catch (Exception e){
-                    Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
-                }
-                String privateKeyPath = "storage/emulated/0/".concat(privateKeyFile.getPath().split(":")[1]);
-                Log.i("pvt key path", privateKeyPath);
-                try {
-                    BufferedReader br = new BufferedReader(new FileReader(privateKeyPath));
-                    StringBuilder stringBuilder = new StringBuilder();
-                    String line = null;
-                    String ls = System.getProperty("line.separator");
-                    while((line = br.readLine()) != null){
-                        stringBuilder.append(line);
-                        stringBuilder.append(ls);
-                    }
-                    stringBuilder.deleteCharAt(stringBuilder.length() - 1);
-                    br.close();
-
-                    String fileContents = stringBuilder.toString();
-
-
-
-                    LayoutInflater i = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
-                    final View getKeyView = i.inflate(R.layout.get_pvt_key, null);
-                    final PopupWindow getKeyPopup = new PopupWindow(getKeyView, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, true);
-                    getKeyPopup.setOutsideTouchable(true);
-                    ViewGroup root = (ViewGroup) getWindow().getDecorView().getRootView();
-                    getKeyPopup.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
-                    applyDim(root, 0.75f);
-
-                    getKeyPopup.setOnDismissListener(() -> clearDim(root));
-
-                    getKeyView.findViewById(R.id.getPvtKey).setOnClickListener(v -> {
-                        String password = ((EditText)getKeyView.findViewById(R.id.loginpassword)).getText().toString();
-                        Log.i("PWD", password);
-                        Log.i("Encrypted PVT Key", fileContents);
-                        try{
-                            String decryptedPrivateKey = AES.decrypt(fileContents, password);
-
-                            Log.i("Used D", decryptedPrivateKey);
-                            String AESKey = RSA.decrypt(RSAEncryptedAESKey, decryptedPrivateKey);
-                            Log.i("Download URL", downloadURL);
-                            Log.i("AES Key", AESKey);
-
-                            //get the file from download URL, perform the AES decrypt as above, save video file locally
-
-                        }catch (Exception e){
-                            Toast.makeText(getApplicationContext(),e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
-                            e.printStackTrace();
-                        }
-                    });
-                } catch (Exception e) {
-                    Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
-                }
-
-
+                getPrivateKeyAndDecrypt(data);
+                break;
         }
     }
 
@@ -322,13 +233,7 @@ public class MainActivity extends AppCompatActivity {
         intent.setType("text/plain");
         intent.addCategory(Intent.CATEGORY_OPENABLE);
 
-        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
-        }
-
-        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
-        }
+        checkReadAndWritePermissions();
 
         try{
             startActivityForResult(
@@ -367,7 +272,8 @@ public class MainActivity extends AppCompatActivity {
                     popupWindow.dismiss();
                     Uri uri = data.getData();
                     String uri_path = "storage/emulated/0/".concat(uri.getPath().split(":")[1]);
-                    decryptAndSave(uri_path, startTime, root, key);
+                    int code = decryptAndSave(uri_path, key);
+                    if (code == 0) giveDecryptionStats(root, startTime);
                 }
             });
 
@@ -464,17 +370,15 @@ public class MainActivity extends AppCompatActivity {
 
                             final File file;
                             boolean flag = true;
-                            Uri uri;
                             FileOutputStream text_encoded;
                             try {
                                 file = new File(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_encoded.txt", file_name));
-                                uri = FileProvider.getUriForFile(MainActivity.this, MainActivity.this.getPackageName() + ".provider", file);
+                                FileProvider.getUriForFile(MainActivity.this, MainActivity.this.getPackageName() + ".provider", file);
                                 text_encoded = new FileOutputStream(file);
                             } catch (Exception e) {
                                 e.printStackTrace();
                                 flag = false;
                                 text_encoded = null;
-                                uri = null;
                                 Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
                             }
 
@@ -491,7 +395,6 @@ public class MainActivity extends AppCompatActivity {
                                 if (temp) {
                                     long endTime = System.currentTimeMillis();
                                     long elapsed = endTime - startTime;
-                                    //Toast.makeText(getApplicationContext(), "Wrote Encoded Text to File!", Toast.LENGTH_SHORT).show();
 
                                     LayoutInflater inf = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
                                     final View pv = inf.inflate(R.layout.decrypted_desc, null);
@@ -508,159 +411,96 @@ public class MainActivity extends AppCompatActivity {
 
                                     ((TextView) pv.findViewById(R.id.time)).setText(String.format("It took %s milliseconds to write to %s.txt!", elapsed, file_name));
 
-                                    pv.findViewById(R.id.close).setOnClickListener(new View.OnClickListener() {
-                                        @Override
-                                        public void onClick(View view) {
-                                            pw.dismiss();
-                                        }
-                                    });
+                                    pv.findViewById(R.id.close).setOnClickListener(view12 -> pw.dismiss());
 
 
-                                    pv.findViewById(R.id.give_access).setOnClickListener(new View.OnClickListener() {
-                                        @Override
-                                        public void onClick(View v) {
-                                            try {
+                                    pv.findViewById(R.id.give_access).setOnClickListener(v -> {
+                                        try {
 
-                                                users = new ArrayList<>();
-                                                public_keys = new ArrayList<>();
+                                            users = new ArrayList<>();
+                                            public_keys = new ArrayList<>();
 
-                                                Toast.makeText(getApplicationContext(), "Please wait while the file is uploaded", Toast.LENGTH_LONG).show();
-                                                String file_path = String.format("storage/emulated/0/VideoEncryptorFiles/%s_encoded.txt", file_name);
-                                                StorageReference storageReference = FirebaseStorage.getInstance().getReference();
-                                                StorageReference encryptedTextFile = storageReference.child(String.format("%s/%s", email, file_name));
+                                            Toast.makeText(getApplicationContext(), "Please wait while the file is uploaded", Toast.LENGTH_LONG).show();
+                                            String file_path = String.format("storage/emulated/0/VideoEncryptorFiles/%s_encoded.txt", file_name);
+                                            StorageReference storageReference = FirebaseStorage.getInstance().getReference();
+                                            StorageReference encryptedTextFile = storageReference.child(String.format("%s/%s", email, file_name));
+                                            final UploadTask uploadTask = encryptedTextFile.putFile(Uri.fromFile(new File(file_path)));
+
+                                            uploadTask.addOnFailureListener(e -> Toast.makeText(getApplicationContext(), "Could not upload: " + e.getMessage(), Toast.LENGTH_LONG).show()).addOnSuccessListener(taskSnapshot -> Toast.makeText(getApplicationContext(), "Successfully uploaded File!", Toast.LENGTH_SHORT).show()
+                                            ).addOnCompleteListener(task -> {
+                                                if (task.isSuccessful()) {
+                                                    encryptedTextFile.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                                        @Override
+                                                        public void onSuccess(Uri uri1) {
+                                                            pw.dismiss();
+                                                            downloadURL = uri1.toString();
+                                                            DatabaseReference reference = FirebaseDatabase.getInstance().getReference().child("Users");
+                                                            LayoutInflater inflater1 = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+                                                            final View view1 = inflater1.inflate(R.layout.user_list, null);
+                                                            final PopupWindow popupWindow1 = new PopupWindow(view1, width, height, focusable);
+                                                            popupWindow1.setOutsideTouchable(true);
+                                                            popupWindow1.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
+                                                            applyDim(root, 0.75f);
+                                                            ListView list_of_users = view1.findViewById(R.id.list_of_users);
 
 
-                                                InputStream stream = new FileInputStream(new File(file_path));
-                                                final UploadTask uploadTask = encryptedTextFile.putFile(Uri.fromFile(new File(file_path)));
-
-                                                uploadTask.addOnFailureListener(new OnFailureListener() {
-                                                    @Override
-                                                    public void onFailure(@NonNull Exception e) {
-                                                        Toast.makeText(getApplicationContext(), "Could not upload: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                                                    }
-                                                }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                                                    @Override
-                                                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                                                        Toast.makeText(getApplicationContext(), "Successfully uploaded File!", Toast.LENGTH_SHORT).show();
-                                                    }
-                                                }).addOnCompleteListener(new OnCompleteListener<UploadTask.TaskSnapshot>() {
-                                                    @Override
-                                                    public void onComplete(@NonNull Task<UploadTask.TaskSnapshot> task) {
-                                                        if (task.isSuccessful()) {
-                                                            encryptedTextFile.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                                            popupWindow1.setOnDismissListener(new PopupWindow.OnDismissListener() {
                                                                 @Override
-                                                                public void onSuccess(Uri uri) {
-                                                                    pw.dismiss();
-                                                                    downloadURL = uri.toString();
-                                                                    DatabaseReference reference = FirebaseDatabase.getInstance().getReference().child("Users");
-                                                                    LayoutInflater inflater1 = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
-                                                                    final View view1 = inflater1.inflate(R.layout.user_list, null);
-                                                                    final PopupWindow popupWindow1 = new PopupWindow(view1, width, height, focusable);
-                                                                    popupWindow1.setOutsideTouchable(true);
-                                                                    popupWindow1.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
-                                                                    applyDim(root, 0.75f);
-                                                                    ListView list_of_users = view1.findViewById(R.id.list_of_users);
+                                                                public void onDismiss() {
+                                                                    clearDim(root);
+                                                                }
+                                                            });
 
+                                                            ArrayAdapter<String> adapter = new ArrayAdapter<String>(getApplicationContext(), R.layout.white_list_text, users);
+                                                            list_of_users.setAdapter(adapter);
 
-                                                                    popupWindow1.setOnDismissListener(new PopupWindow.OnDismissListener() {
-                                                                        @Override
-                                                                        public void onDismiss() {
-                                                                            clearDim(root);
+                                                            reference.addListenerForSingleValueEvent(new ValueEventListener() {
+                                                                @Override
+                                                                public void onDataChange(@NonNull DataSnapshot snapshot) {
+
+                                                                    for (DataSnapshot snap : snapshot.getChildren()) {
+                                                                        String user = snap.getKey();
+                                                                        if (user.replace(",", ".").equals(email)) {
+                                                                            continue;
                                                                         }
-                                                                    });
+                                                                        users.add(user.replace(",", "."));
+                                                                        public_keys.add(String.valueOf(snap.getValue()));
+                                                                        Log.i("Added User", user);
+                                                                    }
+                                                                    Toast.makeText(getApplicationContext(), "Choose one user from this list to which the JSON File will be sent", Toast.LENGTH_LONG).show();
+                                                                    adapter.notifyDataSetChanged();
 
-                                                                    ArrayAdapter<String> adapter = new ArrayAdapter<String>(getApplicationContext(), R.layout.white_list_text, users);
-                                                                    list_of_users.setAdapter(adapter);
-
-                                                                    reference.addListenerForSingleValueEvent(new ValueEventListener() {
-                                                                        @Override
-                                                                        public void onDataChange(@NonNull DataSnapshot snapshot) {
-
-                                                                            for (DataSnapshot snap : snapshot.getChildren()) {
-                                                                                String user = snap.getKey();
-                                                                                if (user.replace(",", ".").equals(email)) {
-                                                                                    continue;
-                                                                                }
-                                                                                users.add(user.replace(",", "."));
-                                                                                public_keys.add(String.valueOf(snap.getValue()));
-                                                                                Log.i("Added User", user);
-                                                                            }
-                                                                            Toast.makeText(getApplicationContext(), "Choose one user from this list to which the JSON File will be sent", Toast.LENGTH_LONG).show();
-                                                                            adapter.notifyDataSetChanged();
-
-                                                                            list_of_users.setOnItemClickListener((parent, view2, position, id) -> {
-                                                                                try {
-                                                                                    String senderEmailID = email;
-                                                                                    //String encryptedAESKey = new String(rsa.encrypt(key.getBytes(), new BigInteger(public_keys.get(position))));
-
-                                                                                    String encryptedAESKey = Base64.getEncoder().encodeToString(RSA.encrypt(key, public_keys.get(position)));
-                                                                                    Log.i("Receiver's Public Key ", public_keys.get(position));
-                                                                                    Log.i("RSA Encrypted AES Key", encryptedAESKey);
-                                                                                    JSONObject jsonObject = new JSONObject();
-                                                                                    jsonObject.put("download-url", downloadURL);
-                                                                                    jsonObject.put("sender-emailID", senderEmailID);
-                                                                                    jsonObject.put("encrypted-AES-key", encryptedAESKey);
-                                                                                    jsonObject.put("comment", "In order to decrypt this, simply choose this JSON file under the \"Decrypt from JSON\" option on the app's main screen");
-                                                                                    try {
-                                                                                        String jsonFilePath = String.format("storage/emulated/0/VideoEncryptorFiles/JSON/%s/", email);
-                                                                                        File dir = new File(jsonFilePath);
-                                                                                        if (!dir.exists())
-                                                                                            dir.mkdirs();
-                                                                                        FileWriter file1 = new FileWriter(jsonFilePath + file_name + ".json");
-                                                                                        file1.write(jsonObject.toString());
-                                                                                        Toast.makeText(getApplicationContext(), "Successfully Wrote JSON File", Toast.LENGTH_SHORT).show();
-                                                                                        file1.close();
-                                                                                    } catch (Exception e) {
-                                                                                        e.printStackTrace();
-                                                                                        Toast.makeText(getApplicationContext(), "Could not write the JSON file data: "+e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
-                                                                                    }
-                                                                                } catch (Exception e) {
-                                                                                    e.printStackTrace();
-                                                                                    Toast.makeText(getApplicationContext(), "Could not Encrypt the AES Key :"+e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
-                                                                                }
-                                                                            });
-
-                                                                        }
-
-                                                                        @Override
-                                                                        public void onCancelled(@NonNull DatabaseError error) {
-
-                                                                        }
+                                                                    list_of_users.setOnItemClickListener((parent, view2, position, id) -> {
+                                                                        writeJSONFile(key, position);
                                                                     });
 
                                                                 }
+
+                                                                @Override
+                                                                public void onCancelled(@NonNull DatabaseError error) {
+
+                                                                }
                                                             });
+
                                                         }
-                                                    }
-                                                }).addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
-                                                    @Override
-                                                    public void onProgress(@NonNull UploadTask.TaskSnapshot taskSnapshot) {
-                                                        Long uploaded = taskSnapshot.getBytesTransferred();
-                                                        Long total = taskSnapshot.getTotalByteCount();
-                                                        Log.i("Uploaded", String.valueOf(uploaded));
-                                                        Log.i("Total", String.valueOf(total));
-                                                                /*LayoutInflater inflater1 = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
-                                                                final View view1 = inflater1.inflate(R.layout.progress, null);
-                                                                final PopupWindow popupWindow1 = new PopupWindow(view1, width, height, focusable);
-                                                                popupWindow1.setOutsideTouchable(true);
-                                                                popupWindow1.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
-                                                                applyDim(root, 0.75f);
+                                                    });
+                                                }
+                                            }).addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
+                                                @Override
+                                                public void onProgress(@NonNull UploadTask.TaskSnapshot taskSnapshot) {
+                                                    Long uploaded = taskSnapshot.getBytesTransferred();
+                                                    Long total = taskSnapshot.getTotalByteCount();
+                                                    Log.i("Uploaded", String.valueOf(uploaded));
+                                                    Log.i("Total", String.valueOf(total));
+                                                    showProgress(taskSnapshot, root);
+                                                }
+                                            });
 
-                                                                popupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
-                                                                    @Override
-                                                                    public void onDismiss() {
-                                                                        clearDim(root);
-                                                                    }
-                                                                });*/
-                                                    }
-                                                });
-
-                                            } catch (Exception e) {
-                                                Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
-                                                e.printStackTrace();
-                                            }
-
+                                        } catch (Exception e) {
+                                            Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                                            e.printStackTrace();
                                         }
+
                                     });
 
 
@@ -719,7 +559,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void decryptAndSave(String uri_path, long startTime, ViewGroup root, String decryptKey){
+    public int decryptAndSave(String uri_path, String decryptKey){
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         FileInputStream fis;
         try {
@@ -741,127 +581,292 @@ public class MainActivity extends AppCompatActivity {
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                buffer = null;
                 Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+                return 1;
             }
-            if (buffer != null) {
-                temp = buffer.toByteArray();
-                AES aes = new AES();
-                String to_decrypt = new String(temp, StandardCharsets.ISO_8859_1);
-                String decrypted;
-                try {
-                    decrypted = aes.decrypt(to_decrypt, decryptKey);
-                    Log.i("Decrypted", decrypted);
-                } catch (Exception e) {
-                    decrypted = null;
-                    Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
-                }
-
-                if (decrypted != null) {
-                    byte[] d_bytes = decrypted.getBytes(StandardCharsets.ISO_8859_1);
-
-                    File out;
-                    Uri vid;
-                    boolean flag = true;
-                    OutputStream os;
-                    try {
-                        out = new File(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_decrypted.mp4", file_name));
-                        vid = FileProvider.getUriForFile(MainActivity.this, MainActivity.this.getPackageName() + ".provider", out);
-                        Log.i("Video", "Success");
-                        Log.i("output", out.getAbsolutePath());
-                        os = new FileOutputStream(out);
-                        os.write(d_bytes);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        flag = false;
-                        os = null;
-                        vid = null;
-                        Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                    if (flag) {
-                        long endTime = System.currentTimeMillis();
-                        long elapsed = endTime - startTime;
-                        LayoutInflater inf = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
-                        final View pv = inf.inflate(R.layout.decrypted_desc, null);
-                        final PopupWindow pw = new PopupWindow(pv, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, true);
-                        pw.setOutsideTouchable(false);
-                        pw.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
-                        applyDim(root, 0.75f);
-
-
-                        ((TextView) pv.findViewById(R.id.view_file)).setText(R.string.play_video);
-                        ((TextView) pv.findViewById(R.id.wrote)).setText(R.string.wrote_vid);
-                        ((TextView) pv.findViewById(R.id.wrote)).setTypeface(null, Typeface.BOLD);
-                        ((TextView) pv.findViewById(R.id.wrote)).setTextSize(26);
-                        ((TextView) pv.findViewById(R.id.time)).setTypeface(null, Typeface.BOLD);
-                        ((TextView) pv.findViewById(R.id.time)).setTextSize(18);
-
-                        ((TextView) pv.findViewById(R.id.time)).setText(String.format("It took %s milliseconds to decrypt and make %s_decrypted.mp4!", elapsed, file_name));
-
-                        pv.findViewById(R.id.close).setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View view) {
-                                pw.dismiss();
-                            }
-                        });
-
-                        pv.findViewById(R.id.give_access).setVisibility(View.INVISIBLE);
-
-
-                        pv.findViewById(R.id.view_file).setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View view) {
-                                pw.dismiss();
-                                final VideoView videoView = findViewById(R.id.videoView);
-                                ;
-                                Uri u = null;
-                                boolean f = true;
-
-                                try {
-                                    u = Uri.parse(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_decrypted.mp4", file_name));
-                                } catch (Exception e) {
-                                    Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
-                                    e.printStackTrace();
-                                    f = false;
-                                }
-                                if (f) {
-                                    videoView.setVideoURI(u);
-                                    videoView.setVisibility(View.VISIBLE);
-                                    Toast.makeText(getApplicationContext(), "Playing Output Video", Toast.LENGTH_SHORT).show();
-                                    (findViewById(R.id.encrypt)).setVisibility(View.INVISIBLE);
-                                    (findViewById(R.id.decrypt)).setVisibility(View.INVISIBLE);
-                                    videoView.start();
-                                    videoView.setOnClickListener(new View.OnClickListener() {
-                                        @Override
-                                        public void onClick(View view) {
-                                            videoView.stopPlayback();
-                                            videoView.setVisibility(View.INVISIBLE);
-                                            (findViewById(R.id.encrypt)).setVisibility(View.VISIBLE);
-                                            (findViewById(R.id.decrypt)).setVisibility(View.VISIBLE);
-                                        }
-                                    });
-
-                                }
-                            }
-                        });
-
-
-                        pw.setOnDismissListener(new PopupWindow.OnDismissListener() {
-                            @Override
-                            public void onDismiss() {
-                                clearDim(root);
-                            }
-                        });
-                        try {
-                            os.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                            Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                }
+            temp = buffer.toByteArray();
+            AES aes = new AES();
+            String to_decrypt = new String(temp, StandardCharsets.ISO_8859_1);
+            String decrypted;
+            try {
+                decrypted = aes.decrypt(to_decrypt, decryptKey);
+            } catch (Exception e) {
+                Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+                return 1;
             }
+            byte[] d_bytes = decrypted.getBytes(StandardCharsets.ISO_8859_1);
+            File out;
+            OutputStream os;
+            try {
+                out = new File(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_decrypted.mp4", file_name));
+                FileProvider.getUriForFile(MainActivity.this, MainActivity.this.getPackageName() + ".provider", out);
+                Log.i("Video", "Success");
+                Log.i("output", out.getAbsolutePath());
+                os = new FileOutputStream(out);
+                os.write(d_bytes);
+                Toast.makeText(getApplicationContext(), "Successfully Saved the decrypted Video file", Toast.LENGTH_LONG).show();
+                os.close();
+                return 0;
+            } catch (Exception e) {
+                e.printStackTrace();
+                Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+                return 1;
+            }
+        }
+        return 1;
+    }
+
+    public void checkReadAndWritePermissions(){
+        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+        }
+
+        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+        }
+
+    }
+
+    public void giveDecryptionStats(ViewGroup root, long startTime){
+        long endTime = System.currentTimeMillis();
+        long elapsed = endTime - startTime;
+        LayoutInflater inf = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+        final View pv = inf.inflate(R.layout.decrypted_desc, null);
+        final PopupWindow pw = new PopupWindow(pv, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, true);
+        pw.setOutsideTouchable(false);
+        pw.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
+        applyDim(root, 0.75f);
+
+
+        ((TextView) pv.findViewById(R.id.view_file)).setText(R.string.play_video);
+        ((TextView) pv.findViewById(R.id.wrote)).setText(R.string.wrote_vid);
+        ((TextView) pv.findViewById(R.id.wrote)).setTypeface(null, Typeface.BOLD);
+        ((TextView) pv.findViewById(R.id.wrote)).setTextSize(26);
+        ((TextView) pv.findViewById(R.id.time)).setTypeface(null, Typeface.BOLD);
+        ((TextView) pv.findViewById(R.id.time)).setTextSize(18);
+
+        ((TextView) pv.findViewById(R.id.time)).setText(String.format("It took %s milliseconds to decrypt and make %s_decrypted.mp4!", elapsed, file_name));
+
+        pv.findViewById(R.id.close).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                pw.dismiss();
+            }
+        });
+
+        pv.findViewById(R.id.give_access).setVisibility(View.INVISIBLE);
+
+
+        pv.findViewById(R.id.view_file).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                pw.dismiss();
+                videoPlay(file_name);
+            }
+        });
+
+
+        pw.setOnDismissListener(new PopupWindow.OnDismissListener() {
+            @Override
+            public void onDismiss() {
+                clearDim(root);
+            }
+        });
+
+    }
+
+    public void showProgress(UploadTask.TaskSnapshot taskSnapshot, ViewGroup root){
+        /*LayoutInflater inflater1 = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+        final View view1 = inflater1.inflate(R.layout.progress, null);
+        final PopupWindow popupWindow1 = new PopupWindow(view1, width, height, focusable);
+        popupWindow1.setOutsideTouchable(true);
+        popupWindow1.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
+        applyDim(root, 0.75f);
+
+        popupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
+            @Override
+            public void onDismiss() {
+                clearDim(root);
+            }
+        });*/
+    }
+
+    public void writeJSONFile(String key, int position){
+        try {
+            String senderEmailID = email;
+            String encryptedAESKey = Base64.getEncoder().encodeToString(RSA.encrypt(key, public_keys.get(position)));
+            Log.i("Receiver's Public Key ", public_keys.get(position));
+            Log.i("RSA Encrypted AES Key", encryptedAESKey);
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("download-url", downloadURL);
+            jsonObject.put("sender-emailID", senderEmailID);
+            jsonObject.put("encrypted-AES-key", encryptedAESKey);
+            jsonObject.put("comment", "In order to decrypt this, simply choose this JSON file under the \"Decrypt from JSON\" option on the app's main screen");
+            try {
+                String jsonFilePath = String.format("storage/emulated/0/VideoEncryptorFiles/JSON/%s/", email);
+                File dir = new File(jsonFilePath);
+                if (!dir.exists())
+                    dir.mkdirs();
+                FileWriter file1 = new FileWriter(jsonFilePath + file_name + ".json");
+                file1.write(jsonObject.toString());
+                Toast.makeText(getApplicationContext(), "Successfully Wrote JSON File", Toast.LENGTH_SHORT).show();
+                file1.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+                Toast.makeText(getApplicationContext(), "Could not write the JSON file data: "+e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(getApplicationContext(), "Could not Encrypt the AES Key :"+e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
+    public void decryptFromJSON(Intent data){
+        Uri jsonFileURI = data.getData();
+        String uri_path = "storage/emulated/0/".concat(jsonFileURI.getPath().split(":")[1]);
+        Log.i("Path", uri_path);
+        JsonParser parser = new JsonParser();
+
+        try (FileReader reader = new FileReader(uri_path)) {
+            Object obj = parser.parse(reader);
+            JsonObject receivedEncryptedVideo = (JsonObject) obj;
+            downloadURL = receivedEncryptedVideo.get("download-url").toString();
+            RSAEncryptedAESKey = receivedEncryptedVideo.get("encrypted-AES-key").toString();
+            String senderEmailID = receivedEncryptedVideo.get("sender-emailID").toString();
+            Toast.makeText(getApplicationContext(), "Choose your private key from VideoEncryptorFiles folder", Toast.LENGTH_LONG).show();
+            getDecryptedKey();
+        } catch (Exception e) {
+            Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    public String getFileName(String url){
+        final String regex = "2F(.*)\\?";
+        final Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE);
+        final Matcher matcher = pattern.matcher(url);
+        String temp;
+        if(matcher.find()){
+            temp = matcher.group(0);
+            return temp.substring(2,temp.length()-1);
+        }
+        return null;
+    }
+
+    public void getPrivateKeyAndDecrypt(Intent data){
+        Uri privateKeyFile = null;
+        try {
+            privateKeyFile = data.getData();
+        }catch (Exception e){
+            Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+        }
+        String privateKeyPath = "storage/emulated/0/".concat(privateKeyFile.getPath().split(":")[1]);
+        Log.i("pvt key path", privateKeyPath);
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(privateKeyPath));
+            StringBuilder stringBuilder = new StringBuilder();
+            String line = null;
+            String ls = System.getProperty("line.separator");
+            while((line = br.readLine()) != null){
+                stringBuilder.append(line);
+                stringBuilder.append(ls);
+            }
+            stringBuilder.deleteCharAt(stringBuilder.length() - 1);
+            br.close();
+
+            String fileContents = stringBuilder.toString();
+
+
+
+            LayoutInflater i = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+            final View getKeyView = i.inflate(R.layout.get_pvt_key, null);
+            final PopupWindow getKeyPopup = new PopupWindow(getKeyView, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, true);
+            getKeyPopup.setOutsideTouchable(true);
+            ViewGroup root = (ViewGroup) getWindow().getDecorView().getRootView();
+            getKeyPopup.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
+            applyDim(root, 0.75f);
+
+            getKeyPopup.setOnDismissListener(() -> clearDim(root));
+
+            getKeyView.findViewById(R.id.getPvtKey).setOnClickListener(v -> {
+                String password = ((EditText)getKeyView.findViewById(R.id.loginpassword)).getText().toString();
+                Log.i("PWD", password);
+                Log.i("Encrypted PVT Key", fileContents);
+                try{
+                    String decryptedPrivateKey = AES.decrypt(fileContents, password);
+                    Log.i("Used Private Key", decryptedPrivateKey);
+                    String AESKey = RSA.decrypt(RSAEncryptedAESKey, decryptedPrivateKey);
+                    Log.i("Download URL", downloadURL);
+                    Log.i("AES Key", AESKey);
+
+                    StorageReference storage = FirebaseStorage.getInstance().getReferenceFromUrl(downloadURL.substring(1,downloadURL.length()-1));
+                    String fileName = getFileName(downloadURL);
+
+                    String savePath = String.format("storage/emulated/0/VideoEncryptorFiles/%s_fromJSON.txt", fileName);
+                    File downloadedTextFile = new File(savePath);
+                    storage.getFile(downloadedTextFile).addOnSuccessListener(new OnSuccessListener<FileDownloadTask.TaskSnapshot>() {
+                        @Override
+                        public void onSuccess(FileDownloadTask.TaskSnapshot taskSnapshot) {
+                            Toast.makeText(getApplicationContext(), "The file has been downloaded, decryption will begin now", Toast.LENGTH_LONG).show();
+                            int code = decryptAndSave(savePath, AESKey);
+                            if (code==0){
+                                getKeyPopup.dismiss();
+                                videoPlay(fileName);
+                            }
+                        }
+                    }).addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            e.printStackTrace();
+                            Toast.makeText(getApplicationContext(), "Could not download File: "+e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    }).addOnProgressListener(new OnProgressListener<FileDownloadTask.TaskSnapshot>() {
+                        @Override
+                        public void onProgress(@NonNull FileDownloadTask.TaskSnapshot taskSnapshot) {
+                            Log.i("Downloaded", String.valueOf(taskSnapshot.getBytesTransferred()));
+                            Log.i("Total", String.valueOf(taskSnapshot.getTotalByteCount()));
+                        }
+                    });
+
+                }catch (Exception e){
+                    Toast.makeText(getApplicationContext(),e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                    e.printStackTrace();
+                }
+            });
+        } catch (Exception e) {
+            Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+        }
+
+    }
+
+    public void videoPlay(String file_name){
+        final VideoView videoView = findViewById(R.id.videoView);
+        Uri u = null;
+        boolean f = true;
+
+        try {
+            u = Uri.parse(String.format("/storage/emulated/0/VideoEncryptorFiles/%s_decrypted.mp4", file_name));
+        } catch (Exception e) {
+            Toast.makeText(getApplicationContext(), e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+            f = false;
+        }
+        if (f) {
+            videoView.setVideoURI(u);
+            videoView.setVisibility(View.VISIBLE);
+            Toast.makeText(getApplicationContext(), "Playing Output Video", Toast.LENGTH_SHORT).show();
+            (findViewById(R.id.encrypt)).setVisibility(View.INVISIBLE);
+            (findViewById(R.id.decrypt)).setVisibility(View.INVISIBLE);
+            videoView.start();
+            videoView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    videoView.stopPlayback();
+                    videoView.setVisibility(View.INVISIBLE);
+                    (findViewById(R.id.encrypt)).setVisibility(View.VISIBLE);
+                    (findViewById(R.id.decrypt)).setVisibility(View.VISIBLE);
+                }
+            });
+
+        }
+    }
 }
