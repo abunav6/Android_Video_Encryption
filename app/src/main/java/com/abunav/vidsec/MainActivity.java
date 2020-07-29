@@ -24,6 +24,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.PopupWindow;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.VideoView;
@@ -36,7 +37,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
-import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -47,7 +47,6 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.FileDownloadTask;
 import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.OnProgressListener;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 import com.google.gson.JsonObject;
@@ -82,9 +81,8 @@ public class MainActivity extends AppCompatActivity {
     private String RSAEncryptedAESKey;
     private ArrayList<String> users;
     private ArrayList<String> public_keys;
-
-
-
+    private View progressView;
+    private PopupWindow progressWindow;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,6 +91,8 @@ public class MainActivity extends AppCompatActivity {
         getSupportActionBar().hide();
         Window w = getWindow();
         w.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+
+
 
 
         findViewById(R.id.logout).setOnClickListener(new View.OnClickListener() {
@@ -426,74 +426,71 @@ public class MainActivity extends AppCompatActivity {
                                             StorageReference encryptedTextFile = storageReference.child(String.format("%s/%s", email, file_name));
                                             final UploadTask uploadTask = encryptedTextFile.putFile(Uri.fromFile(new File(file_path)));
 
+
+                                            LayoutInflater inflater1 = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+                                            progressView = inflater1.inflate(R.layout.progress, null);
+                                            progressWindow = new PopupWindow(progressView, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, true);
+                                            progressWindow.setOutsideTouchable(true);
+                                            progressWindow.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
+
                                             uploadTask.addOnFailureListener(e -> Toast.makeText(getApplicationContext(), "Could not upload: " + e.getMessage(), Toast.LENGTH_LONG).show()).addOnSuccessListener(taskSnapshot -> Toast.makeText(getApplicationContext(), "Successfully uploaded File!", Toast.LENGTH_SHORT).show()
                                             ).addOnCompleteListener(task -> {
                                                 if (task.isSuccessful()) {
-                                                    encryptedTextFile.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                                                        @Override
-                                                        public void onSuccess(Uri uri1) {
-                                                            pw.dismiss();
-                                                            downloadURL = uri1.toString();
-                                                            DatabaseReference reference = FirebaseDatabase.getInstance().getReference().child("Users");
-                                                            LayoutInflater inflater1 = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
-                                                            final View view1 = inflater1.inflate(R.layout.user_list, null);
-                                                            final PopupWindow popupWindow1 = new PopupWindow(view1, width, height, focusable);
-                                                            popupWindow1.setOutsideTouchable(true);
-                                                            popupWindow1.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
-                                                            applyDim(root, 0.75f);
-                                                            ListView list_of_users = view1.findViewById(R.id.list_of_users);
+                                                    encryptedTextFile.getDownloadUrl().addOnSuccessListener(uri1 -> {
+                                                        pw.dismiss();
+                                                        downloadURL = uri1.toString();
+                                                        progressView.setVisibility(View.INVISIBLE);
+                                                        progressWindow.dismiss();
+                                                        DatabaseReference reference = FirebaseDatabase.getInstance().getReference().child("Users");
+                                                        LayoutInflater inf1 = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+                                                        final View view1 = inf1.inflate(R.layout.user_list, null);
+                                                        final PopupWindow popupWindow1 = new PopupWindow(view1, width, height, focusable);
+                                                        popupWindow1.setOutsideTouchable(true);
+                                                        popupWindow1.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
+                                                        applyDim(root, 0.75f);
+                                                        ListView list_of_users = view1.findViewById(R.id.list_of_users);
+                                                        popupWindow1.setOnDismissListener(() -> clearDim(root));
 
+                                                        ArrayAdapter<String> adapter = new ArrayAdapter<String>(getApplicationContext(), R.layout.white_list_text, users);
+                                                        list_of_users.setAdapter(adapter);
 
-                                                            popupWindow1.setOnDismissListener(new PopupWindow.OnDismissListener() {
-                                                                @Override
-                                                                public void onDismiss() {
-                                                                    clearDim(root);
-                                                                }
-                                                            });
+                                                        reference.addListenerForSingleValueEvent(new ValueEventListener() {
+                                                            @Override
+                                                            public void onDataChange(@NonNull DataSnapshot snapshot) {
 
-                                                            ArrayAdapter<String> adapter = new ArrayAdapter<String>(getApplicationContext(), R.layout.white_list_text, users);
-                                                            list_of_users.setAdapter(adapter);
-
-                                                            reference.addListenerForSingleValueEvent(new ValueEventListener() {
-                                                                @Override
-                                                                public void onDataChange(@NonNull DataSnapshot snapshot) {
-
-                                                                    for (DataSnapshot snap : snapshot.getChildren()) {
-                                                                        String user = snap.getKey();
-                                                                        if (user.replace(",", ".").equals(email)) {
-                                                                            continue;
-                                                                        }
-                                                                        users.add(user.replace(",", "."));
-                                                                        public_keys.add(String.valueOf(snap.getValue()));
-                                                                        Log.i("Added User", user);
+                                                                for (DataSnapshot snap : snapshot.getChildren()) {
+                                                                    String user = snap.getKey();
+                                                                    if (user.replace(",", ".").equals(email)) {
+                                                                        continue;
                                                                     }
-                                                                    Toast.makeText(getApplicationContext(), "Choose one user from this list to which the JSON File will be sent", Toast.LENGTH_LONG).show();
-                                                                    adapter.notifyDataSetChanged();
-
-                                                                    list_of_users.setOnItemClickListener((parent, view2, position, id) -> {
-                                                                        writeJSONFile(key, position);
-                                                                    });
-
+                                                                    users.add(user.replace(",", "."));
+                                                                    public_keys.add(String.valueOf(snap.getValue()));
+                                                                    Log.i("Added User", user);
                                                                 }
+                                                                Toast.makeText(getApplicationContext(), "Choose one user from this list to which the JSON File will be sent", Toast.LENGTH_LONG).show();
+                                                                adapter.notifyDataSetChanged();
 
-                                                                @Override
-                                                                public void onCancelled(@NonNull DatabaseError error) {
+                                                                list_of_users.setOnItemClickListener((parent, view2, position, id) -> {
+                                                                    writeJSONFile(key, position);
+                                                                });
 
-                                                                }
-                                                            });
+                                                            }
 
-                                                        }
+                                                            @Override
+                                                            public void onCancelled(@NonNull DatabaseError error) {
+
+                                                            }
+                                                        });
+
                                                     });
                                                 }
-                                            }).addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
-                                                @Override
-                                                public void onProgress(@NonNull UploadTask.TaskSnapshot taskSnapshot) {
-                                                    Long uploaded = taskSnapshot.getBytesTransferred();
-                                                    Long total = taskSnapshot.getTotalByteCount();
-                                                    Log.i("Uploaded", String.valueOf(uploaded));
-                                                    Log.i("Total", String.valueOf(total));
-                                                    showProgress(taskSnapshot, root);
-                                                }
+                                            }).addOnProgressListener(taskSnapshot -> {
+                                                Long uploaded = taskSnapshot.getBytesTransferred();
+                                                Long total = taskSnapshot.getTotalByteCount();
+                                                Log.i("Uploaded", String.valueOf(uploaded));
+                                                Log.i("Total", String.valueOf(total));
+
+                                                showProgress(taskSnapshot, root, popupWindow);
                                             });
 
                                         } catch (Exception e) {
@@ -504,41 +501,28 @@ public class MainActivity extends AppCompatActivity {
                                     });
 
 
-                                    pv.findViewById(R.id.view_file).setOnClickListener(new View.OnClickListener() {
-                                        @Override
-                                        public void onClick(View view) {
-                                            pw.dismiss();
-                                            LayoutInflater i = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
-                                            final View p1 = i.inflate(R.layout.encoded, null);
-                                            final PopupWindow p2 = new PopupWindow(p1, width, height, focusable);
-                                            p2.setOutsideTouchable(true);
-                                            Toast.makeText(getApplicationContext(), "Wait while the encoded text is loaded, this may take a while", Toast.LENGTH_LONG).show();
-                                            ((TextView) p1.findViewById(R.id.encoded_text)).setText(encoded);
-                                            ((TextView) p1.findViewById(R.id.title)).setText(String.format("%s_encoded.txt", file_name));
-                                            ((TextView) p1.findViewById(R.id.title)).setTextColor(Color.WHITE);
-                                            ((TextView) p1.findViewById(R.id.title)).setTypeface(null, Typeface.BOLD);
-                                            ((TextView) p1.findViewById(R.id.encoded_text)).setTextColor(Color.WHITE);
-                                            ((TextView) p1.findViewById(R.id.encoded_text)).setMovementMethod(new ScrollingMovementMethod());
-                                            p2.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
-                                            applyDim(root, 0.75f);
+                                    pv.findViewById(R.id.view_file).setOnClickListener(view13 -> {
+                                        pw.dismiss();
+                                        LayoutInflater i = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+                                        final View p1 = i.inflate(R.layout.encoded, null);
+                                        final PopupWindow p2 = new PopupWindow(p1, width, height, focusable);
+                                        p2.setOutsideTouchable(true);
+                                        Toast.makeText(getApplicationContext(), "Wait while the encoded text is loaded, this may take a while", Toast.LENGTH_LONG).show();
+                                        ((TextView) p1.findViewById(R.id.encoded_text)).setText(encoded);
+                                        ((TextView) p1.findViewById(R.id.title)).setText(String.format("%s_encoded.txt", file_name));
+                                        ((TextView) p1.findViewById(R.id.title)).setTextColor(Color.WHITE);
+                                        ((TextView) p1.findViewById(R.id.title)).setTypeface(null, Typeface.BOLD);
+                                        ((TextView) p1.findViewById(R.id.encoded_text)).setTextColor(Color.WHITE);
+                                        ((TextView) p1.findViewById(R.id.encoded_text)).setMovementMethod(new ScrollingMovementMethod());
+                                        p2.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
+                                        applyDim(root, 0.75f);
 
-                                            p2.setOnDismissListener(new PopupWindow.OnDismissListener() {
-                                                @Override
-                                                public void onDismiss() {
-                                                    clearDim(root);
-                                                }
-                                            });
+                                        p2.setOnDismissListener(() -> clearDim(root));
 
 
-                                        }
                                     });
 
-                                    pw.setOnDismissListener(new PopupWindow.OnDismissListener() {
-                                        @Override
-                                        public void onDismiss() {
-                                            clearDim(root);
-                                        }
-                                    });
+                                    pw.setOnDismissListener(() -> clearDim(root));
                                 }
                             }
                             popupWindow.dismiss();
@@ -675,21 +659,54 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public void showProgress(UploadTask.TaskSnapshot taskSnapshot, ViewGroup root){
-        /*LayoutInflater inflater1 = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
-        final View view1 = inflater1.inflate(R.layout.progress, null);
-        final PopupWindow popupWindow1 = new PopupWindow(view1, width, height, focusable);
-        popupWindow1.setOutsideTouchable(true);
-        popupWindow1.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
+    public void showProgress(UploadTask.TaskSnapshot taskSnapshot, ViewGroup root, PopupWindow popupWindow){
+        /*
+            shows the progress while UPLOADING the text file to Firebase Storage
+        */
+
+        Log.i("Uploaded", String.valueOf(taskSnapshot.getBytesTransferred()));
+        Log.i("Total", String.valueOf(taskSnapshot.getTotalByteCount()));
+
+        long uploaded = 0L;
+        long total = taskSnapshot.getTotalByteCount();
+
+        double perc;
+
+
         applyDim(root, 0.75f);
 
-        popupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
-            @Override
-            public void onDismiss() {
-                clearDim(root);
-            }
-        });*/
+        uploaded = taskSnapshot.getBytesTransferred();
+        perc = Math.round(100.0* (100.0 * uploaded/total))/100.0;
+        ((TextView) progressView.findViewById(R.id.upload_status)).setText(String.format("Upload Status : %s%%", perc));
+        ((ProgressBar) progressView.findViewById(R.id.progressBar)).setProgress((int) Math.round(perc));
+
+        popupWindow.setOnDismissListener(() -> clearDim(root));
     }
+
+    public void showProgress(FileDownloadTask.TaskSnapshot taskSnapshot, ViewGroup root, PopupWindow popupWindow){
+
+        /*
+            Gives the progress Status while downloading the text file from firebase storage
+        */
+
+
+        Log.i("Uploaded", String.valueOf(taskSnapshot.getBytesTransferred()));
+        Log.i("Total", String.valueOf(taskSnapshot.getTotalByteCount()));
+
+        applyDim(root, 0.75f);
+
+        long uploaded;
+        long total = taskSnapshot.getTotalByteCount();
+        double perc;
+
+        uploaded = taskSnapshot.getBytesTransferred();
+        perc = Math.round(100.0* (100.0 * uploaded/total))/100.0;
+        Log.i("Percentage ", String.valueOf(perc)+"%");
+        ((TextView) progressView.findViewById(R.id.upload_status)).setText(String.format("Download Status : %s%%", perc));
+        ((ProgressBar) progressView.findViewById(R.id.progressBar)).setProgress((int) Math.round(perc));
+        popupWindow.setOnDismissListener(() -> clearDim(root));
+    }
+
 
     public void writeJSONFile(String key, int position){
         try {
@@ -803,28 +820,31 @@ public class MainActivity extends AppCompatActivity {
 
                     String savePath = String.format("storage/emulated/0/VideoEncryptorFiles/%s_fromJSON.txt", fileName);
                     File downloadedTextFile = new File(savePath);
+
+                    LayoutInflater inflater1 = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+                    progressView = inflater1.inflate(R.layout.progress, null);
+                    progressWindow = new PopupWindow(progressView, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, true);
+                    progressWindow.setOutsideTouchable(true);
+                    progressWindow.showAtLocation(findViewById(R.id.main_activity), Gravity.CENTER, 0, 0);
+
+
                     storage.getFile(downloadedTextFile).addOnSuccessListener(new OnSuccessListener<FileDownloadTask.TaskSnapshot>() {
                         @Override
                         public void onSuccess(FileDownloadTask.TaskSnapshot taskSnapshot) {
                             Toast.makeText(getApplicationContext(), "The file has been downloaded, decryption will begin now", Toast.LENGTH_LONG).show();
                             int code = decryptAndSave(savePath, AESKey);
                             if (code==0){
+                                progressView.setVisibility(View.INVISIBLE);
+                                progressWindow.dismiss();
                                 getKeyPopup.dismiss();
                                 videoPlay(fileName);
                             }
                         }
-                    }).addOnFailureListener(new OnFailureListener() {
-                        @Override
-                        public void onFailure(@NonNull Exception e) {
-                            e.printStackTrace();
-                            Toast.makeText(getApplicationContext(), "Could not download File: "+e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
-                        }
-                    }).addOnProgressListener(new OnProgressListener<FileDownloadTask.TaskSnapshot>() {
-                        @Override
-                        public void onProgress(@NonNull FileDownloadTask.TaskSnapshot taskSnapshot) {
-                            Log.i("Downloaded", String.valueOf(taskSnapshot.getBytesTransferred()));
-                            Log.i("Total", String.valueOf(taskSnapshot.getTotalByteCount()));
-                        }
+                    }).addOnFailureListener(e -> {
+                        e.printStackTrace();
+                        Toast.makeText(getApplicationContext(), "Could not download File: "+e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                    }).addOnProgressListener(taskSnapshot -> {
+                        showProgress(taskSnapshot, root, getKeyPopup);
                     });
 
                 }catch (Exception e){
